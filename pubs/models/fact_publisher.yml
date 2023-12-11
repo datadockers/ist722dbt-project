@@ -6,9 +6,12 @@ models:
         description: source key for drill through.
         tests:
             - not_null
-            - unique
       - name: publisherkey
         description: Dimension FK for dim publisher
       - name: number_of_titles
         description: Factless fact, number of titles owned by each publisher
+      - name: titlekey
+        description: Dimension FK for dim title
+      - name: pubdate
+        description: date of publishing
             
