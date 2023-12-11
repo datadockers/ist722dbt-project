@@ -1,0 +1,20 @@
+models:
+  - name: dim_titleauthor
+    description: Talks about title,author,order,author order and royalty type. One row pe author.
+    columns:
+      - name: titleauthorkey
+        description: The surrogate key for the titleauthor
+        tests:
+          - not_null
+      - name: au_id
+        description: The business / source key of the titleauthor
+        tests:
+          - not_null
+      - name: title_id
+        description: The business / source key of the title
+        tests:
+          - not_null
+      - name: au_order
+        description: Authoe order
+      - name: royaltyper
+        description: Royalty type
