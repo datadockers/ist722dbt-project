@@ -16,3 +16,5 @@ models:
         description: additive fact for total discount on each title
       - name: revenue per title
         description: additive fact for  (price - discount amount)*quantity
+      - name: discountkey
+        description: Dimension FK for dim_discounts
