@@ -1,0 +1,270 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2758
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww29200\viewh18400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 -- RAW.CONFORMED.DATEDIMENSIONRAW.CONFORMED.DATEDIMENSION\
+-- create databases\
+create database if not exists analytics;\
+create database if not exists raw;\
+\
+--create schemas\
+create schema if not exists analytics.pubs;\
+create schema if not exists raw.pubs;\
+create schema if not exists raw.conformed;\
+\
+-- define file formats\
+create or replace file format RAW.PUBLIC.PARQUET \
+    TYPE = parquet\
+    REPLACE_INVALID_CHARACTERS = TRUE;\
+\
+create or replace file format RAW.PUBLIC.JSONARRAY \
+    TYPE = json\
+    STRIP_OUTER_ARRAY = TRUE;\
+\
+create or replace file format RAW.PUBLIC.JSON\
+    TYPE = json\
+    STRIP_OUTER_ARRAY = FALSE;\
+\
+create or replace file format RAW.PUBLIC.CSVHEADER\
+    TYPE = 'csv'\
+    FIELD_DELIMITER  = ','\
+    SKIP_HEADER=1;\
+    \
+create or replace file format RAW.PUBLIC.CSV\
+    TYPE = csv\
+    FIELD_DELIMITER  = ','\
+    PARSE_HEADER = FALSE\
+    SKIP_HEADER  = 0;  \
+\
+\
+-- create stages\
+-- varying file formats\
+CREATE or replace STAGE RAW.PUBLIC.externalworld_files\
+  URL = 'azure://externalworld.blob.core.windows.net/files/';\
+\
+-- these are all parquet file formats\
+CREATE or replace STAGE RAW.PUBLIC.externalworld_database\
+  URL = 'azure://externalworld.blob.core.windows.net/database/'\
+  FILE_FORMAT = RAW.PUBLIC.PARQUET ;\
+\
+\
+-- stage the date dimension\
+CREATE or REPLACE TABLE raw.conformed.datedimension (\
+    datekey int\
+    ,date date\
+    ,datetime timestamp\
+    ,year int\
+    ,quarter int\
+    ,quartername varchar(2)\
+    ,month int\
+    ,monthname varchar(3)\
+    ,day int\
+    ,dayofweek int\
+    ,dayname varchar(3)\
+    ,weekday varchar(1)\
+    ,weekofyear int\
+    ,dayofyear int\
+) AS\
+    WITH CTE_MY_DATE AS (\
+    SELECT DATEADD(DAY, SEQ4(), '1970-01-01 00:00:00') AS MY_DATE\
+    FROM TABLE(GENERATOR(ROWCOUNT=>365*30))\
+    )\
+    SELECT\
+    REPLACE(TO_DATE(MY_DATE)::varchar,'-','')::int  as datekey,\
+    TO_DATE(MY_DATE) as date\
+    ,TO_TIMESTAMP(MY_DATE) as datetime\
+    ,YEAR(MY_DATE) as year\
+    ,QUARTER(MY_DATE) as quarter\
+    ,CONCAT('Q', QUARTER(MY_DATE)::varchar) as quartername\
+    ,MONTH(MY_DATE) as month\
+    ,MONTHNAME(MY_DATE) as monthname\
+    ,DAY(MY_DATE) as day\
+    ,DAYOFWEEK(MY_DATE) as dayofweek\
+    ,DAYNAME(MY_DATE) as dayname\
+    ,case when DAYOFWEEK(MY_DATE) between 1 and 5 then 'Y' else 'N' end as weekday\
+    ,WEEKOFYEAR(MY_DATE) as weekofyear\
+    ,DAYOFYEAR(MY_DATE) as dayofyear\
+    FROM CTE_MY_DATE\
+    ;\
+\
+\
+-- stage pubs authors\
+create or replace table RAW.pubs.authors\
+(\
+    au_id varchar,\
+    au_lname varchar(40),\
+    au_fname varchar(20),\
+    phone char(12),\
+    address varchar(40),\
+    city varchar(20),\
+    state char(2),\
+    zip char(5),\
+    contract int\
+);\
+copy into RAW.pubs.authors\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.authors.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+\
+-- stage pubs discounts\
+create or replace table RAW.pubs.discounts\
+(\
+    discounttype varchar(40),\
+    stor_id char(4),\
+    lowqty smallint,\
+    highqty smallint,\
+    discount decimal(4,2)\
+);\
+copy into RAW.pubs.discounts\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.discounts.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+-- stage pubs employee\
+create or replace table RAW.pubs.employee\
+(\
+    emp_id char(10),\
+    fname varchar(20),\
+    minit char(1),\
+    lname varchar(30),\
+    job_id smallint,\
+    joblvl int,\
+    pub_id char(4),\
+    hire_date varchar\
+);\
+copy into RAW.pubs.employee\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.employee.parquet'\
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+update raw.pubs.employee set hire_date = TO_DATE(hire_date);\
+    \
+-- stage pubs jobs\
+create or replace table RAW.pubs.jobs\
+(\
+    job_id smallint,\
+    job_desc varchar(50),\
+    min_lvl int,\
+    max_lvl int\
+);\
+copy into RAW.pubs.employee\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.employee.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+-- stage pubs pub_info\
+create or replace table RAW.pubs.pub_info\
+(\
+    pub_id char(4),\
+    pr_info text\
+);\
+copy into RAW.pubs.pub_info\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.pub_info.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+\
+-- stage pubs publisher\
+create or replace table RAW.pubs.publishers\
+(\
+    pub_id char (4),\
+    pub_name varchar (40),\
+    city varchar (40),\
+    state char (2),\
+    country varchar (40)\
+);\
+copy into RAW.pubs.publishers\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.publishers.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+create or replace table RAW.pubs.roysched\
+(\
+    title_id varchar (10),\
+    lorange int,\
+    hirange int,\
+    royalty int\
+    \
+);\
+copy into RAW.pubs.roysched\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.roysched.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+create or replace table RAW.pubs.sales\
+(\
+    stor_id char (4),\
+    ord_num varchar (20),\
+    ord_date varchar,\
+    qty smallint,\
+    payterms varchar (12),\
+    title_id varchar (10)\
+);\
+copy into RAW.pubs.sales\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.sales.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+update raw.pubs.sales set ord_date = TO_DATE(ord_date);\
+\
+COPY INTO RAW.PUBS.SALES\
+(stor_id, ord_num, ord_date, qty, payterms, title_id)\
+FROM '@RAW.PUBLIC.externalworld_files/pubs.1995orders.csv'\
+FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 0);\
+\
+\
+copy into RAW.PUBS.SALES\
+    (stor_id,ord_num,ord_date,qty,payterms,title_id)\
+    from '@RAW.PUBLIC.externalworld_files/pubs.1996orders.csv'\
+    FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 0);   \
+\
+\
+--copy into RAW.pubs.sales \
+    --FROM '@RAW.PUBLIC.externalworld_files/pubs.1996orders.csv' \
+    --file_format = (format_name=RAW.PUBLIC.CSVHEADER); \
+   \
+\
+\
+create or replace table RAW.pubs.stores\
+(\
+    stor_id char (4),\
+    stor_name varchar (40),\
+    stor_address varchar (40),\
+    city varchar (20),\
+    state char (2),\
+    zip char (5)\
+);\
+copy into RAW.pubs.stores\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.stores.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+\
+create or replace table RAW.pubs.titleauthor\
+(\
+    au_id varchar (15),\
+    title_id varchar (10),\
+    au_ord int,\
+    royaltyper int\
+    \
+);\
+copy into RAW.pubs.titleauthor\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.titleauthor.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+\
+create or replace table RAW.pubs.titles\
+(\
+    title_id varchar (10),\
+    title varchar (80),\
+    type char (12),\
+    pub_id char (4),\
+    price float,\
+    advance float,\
+    royalty int,\
+    ytd_sales bigint,\
+    notes varchar (200),\
+    pubdate varchar\
+    \
+    \
+);\
+copy into RAW.pubs.titles\
+    FROM '@RAW.PUBLIC.externalworld_database/pubs.titles.parquet' \
+    MATCH_BY_COLUMN_NAME='CASE_INSENSITIVE';\
+\
+update raw.pubs.titles set pubdate = TO_DATE(pubdate);}
