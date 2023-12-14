@@ -1,0 +1,88 @@
+version: 2
+
+sources:
+  - name: conformed
+    database: raw
+    schema: conformed
+
+    tables:
+      - name: DateDimension
+        columns:
+          - name: DateKey
+            tests:
+              - unique   
+
+  - name: pubs
+    database: raw
+    schema: pubs
+
+    tables:
+      - name: authors
+        columns:
+          - name: au_id
+            tests:
+              - unique  
+              - not_null      
+
+      - name: discounts
+
+
+      - name: employee
+        columns:
+          - name: emp_id
+            tests:
+              - unique  
+              - not_null  
+
+      - name: jobs
+        columns:
+          - name: job_id
+            tests:
+              - unique  
+              - not_null  
+
+      - name: publishers
+        columns:
+          - name: pub_id
+            tests:
+              - unique  
+              - not_null   
+
+      - name: pub_info
+        columns:
+          - name: pub_id
+            tests:
+              - unique  
+              - not_null  
+
+      - name: roysched
+        columns:
+          - name: title_id
+            tests: 
+              - not_null  
+
+      - name: sales
+        columns:
+          - name: stor_id
+            tests: 
+              - not_null  
+
+      - name: stores
+        columns:
+          - name: stor_id
+            tests:
+              - unique  
+              - not_null   
+
+      - name: titleauthor
+        columns:
+          - name: au_id
+            tests:
+              - not_null  
+
+      - name: titles
+        columns:
+          - name: title_id
+            tests:
+              - unique  
+              - not_null                 
