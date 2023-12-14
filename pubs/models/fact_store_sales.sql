@@ -18,9 +18,7 @@ stg_discounts AS (
     SELECT * FROM {{ source("pubs", 'discounts') }}
 ),
 
-stg_DateDimension AS (
-    SELECT * FROM {{ source("conformed", 'DateDimension')}}
-),
+
 
 revenue_stor AS (
     SELECT 
