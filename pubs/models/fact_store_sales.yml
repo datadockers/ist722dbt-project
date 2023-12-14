@@ -10,8 +10,8 @@ models:
             - not_null
       - name: storekey
         description: dimension FK for dim_store
-      - name: date
-        description: Dimension FK for dim_date
+      - name: revenue_date
+        description: Date when the revenue was generated
       - name: total_quantity_sold_per_store
         description: the quantity of titles sold per store. Additive
       - name: total_discount_amount_per_store
